@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <script src="src/jquery-ui.js"></script>
+        <script src="src/jquery.js"></script>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
+        <script src="/socket.io/socket.io.js"></script>
+        <style>
+            canvas{
+                display: block;
+                margin: auto;
+                border-style: solid;
+                border-color: aqua;
+            }
+            div{
+                text-align: center;
+                margin: auto;
+            }
+        </style>
+    </head>
+    <body>
+        <audio controls id="music">
+            <source src="pokemonmusic.mp3" type="audio/mpeg">
+        </audio>
+        <img src="skittyright.png" class="pics" id="skittyright">
+        <img src="skittyleft.png" class="pics" id="skittyleft">
+        <img src="spearowleft.png" class="pics" id="spearowleft">
+        <img src="spearowright.png" class="pics" id="spearowright">
+        <img src="piplupleft.png" class="pics" id="piplupleft">
+        <img src="piplupright.png" class="pics" id="piplupright">
+        <img src="laser.png" class="pics" id="laser">
+        <img src="brick.png" class="pics" id="brick">
+        <canvas id=mainCanvas height="520" width="800"></canvas>
+        <div>
+            <form>
+            <input type="text" value="Enter Name To Begin">
+            <input type="submit">
+            </form>
+        </div>
+        
+<script>
+   var skittyright=document.getElementById("skittyright");
+    var skittyleft=document.getElementById("skittyleft");
+    var spearowright=document.getElementById("spearowright");
+    var spearowleft=document.getElementById("spearowleft");
+    var piplupleft=document.getElementById("piplupleft");
+    var piplupright=document.getElementById("piplupright");
+    var laser=document.getElementById("laser");
+    var brick=document.getElementById("brick");
+    var music=document.getElementById("music");
+    music.play();
+   
+    /*
+    var skittyright=new Image();
+        skittyright.src=document.getElementById("skittyright");
+    var skittyleft=new Image();
+        skittyleft.src=document.getElementById("skittyleft");
+    var spearowright=new Image();
+        spearowright.src=document.getElementById("spearowright");
+    var spearowleft=new Image();
+        spearowleft.src=document.getElementById("spearowleft");
+    var piplupleft=new Image();
+        piplupleft.src=document.getElementById("piplupleft");
+    var piplupright=new Image();
+        piplupright.src=document.getElementById("piplupright");
+    
+    var skittyright=new Image();
+        skittyright.src="skittyright.png";
+    var skittyleft=new Image();
+        skittyleft.src="skittyleft.png";
+    var spearowright=new Image();
+        spearowright.src="spearowright.png";
+    var spearowleft=new Image();
+        spearowleft.src="spearowleft.png";
+    var piplupleft=new Image();
+        piplupleft.src="piplupleft.png";
+    var piplupright=new Image();
+        piplupright.src="piplupright.png";
+        */
+    
+    
+    var userName="";
+    var userListClient=[];
+    var gameOver=false;
+    var cont=document.getElementById("mainCanvas").getContext('2d');
+    cont.font="20px Comic Sans";
+    cont.textAlign="center";
+    
+  var socket = io();
+    console.log(socket);
+    socket.on("connection",function(socket){
+        console.log(socket.join);
+        console.log("sockt");
+        socket.join("test room");
+        socket.on("disconnect",function(socket){
+            socket.emit("disconnect user name",userName);
+        });
+    });
+    socket.on("get User List", function(obj){
+       userListClient=obj; 
+    });
+   
+    socket.on("countertest",function(obj){
+           console.log(obj); 
+        });
+     $("form").submit(function(e){
+         e.preventDefault();
+         gameOver=false;
+        console.log($("input").val());
+        var usr=$("input").val();
+        socket.emit("get User List","");
+        console.log(userListClient);
+        var okay=true;
+        for(u in userListClient){
+            if(userListClient[u]==usr){
+                okay=false;
+                break;
+            }
+        }
+        if(okay){
+            socket.emit("new user",usr);
+            userName=usr;
+            $("form").hide();
+        }
+    });
+    socket.on("render canvas",function(list){
+        var charList=list[0];
+        var laserList=list[1];
+        var platformlist=list[2];
+        cont.clearRect(0,0,1000,1000);
+       for(l in charList){
+           var dir="right";
+           if(charList[l].left){
+            dir="left";
+           }
+           var img=eval((charList[l].picture+dir));
+           cont.drawImage(img, charList[l].x,charList[l].y,charList[l].width,charList[l].height);
+           cont.fillText(charList[l].user, charList[l].x+(charList[l].width/2), charList[l].y-2);
+           if(charList[l].user==userName){
+               cont.fillText("Energy: "+charList[l].energy.toString(), 100, 30);
+               cont.fillText("Health: "+charList[l].health.toString(), 650,30);
+           }
+       }
+        for(l in laserList){
+            cont.drawImage(laser, laserList[l].x,laserList[l].y,laserList[l].width,laserList[l].height);
+        }
+        for(p in platformlist){
+            cont.drawImage(brick,platformlist[p].x,platformlist[p].y,platformlist[p].width,platformlist[p].height);
+        }
+        if(gameOver){
+        cont.fillText("Game Over",400,50);
+        }
+        
+    });
+    socket.on("game over",function(user){
+        if(userName==user){
+            cont.clearRect(0,0,1000,1000);
+        cont.fillText("Game Over",400,50);
+            gameOver=true;
+        $("form").show();
+        }
+    });
+     $(document).keydown(function(e){
+         if((e.originalEvent.code=="ArrowUp")||(e.originalEvent.code=="ArrowDown")||(e.originalEvent.code=="Space")||(e.originalEvent.code=="ArrowRight")||(e.originalEvent.code=="ArrowLeft")){
+         e.preventDefault();   
+         }
+         socket.emit("key",{user: userName, key: e.originalEvent.code});
+    });
+    $(".pics").hide();
+</script>
+    </body>
+</html>

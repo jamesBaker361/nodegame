@@ -1,0 +1,4 @@
+client side emits and events go wherever
+
+server side events and emits go inside the connection handler
+
